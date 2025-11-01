@@ -1,0 +1,62 @@
+id: "fileutils"
+name: "File Utils"
+description: "Provides basic file and directory operations for Linux filesystems"
+version: "1.0.0"
+author: "Stavily Team"
+license: "MIT"
+type: "action"
+
+# Python execution configuration
+runtime:
+  type: "python"
+  version: "3.8+"
+  entry_point: "main.py"
+  requirements: "requirements.txt"
+
+# Plugin configuration schema
+configuration:
+  operation:
+    type: "list"
+    description: "List of operations to perform"
+    items:
+      type: "string"
+      enum: ["create_file", "create_dir", "move", "delete", "rename"]
+    required: true
+  source:
+    type: "list"
+    description: "Source paths (for move and rename operations, one per operation)"
+    items:
+      type: "string"
+    required: false
+  destination:
+    type: "list"
+    description: "Destination paths (one per operation)"
+    items:
+      type: "string"
+    required: true
+  content:
+    type: "list"
+    description: "Content for create_file operations (one per operation)"
+    items:
+      type: "string"
+    required: false
+
+# Resource limits
+limits:
+  memory: "128MB"
+  cpu: "0.2"
+  execution_time: "120s"
+
+# Permissions
+permissions:
+  filesystem:
+    read:
+      - "/"  # Allow reading from root for file operations
+    write:
+      - "/"  # Allow writing to root for file operations
+  system_calls:
+    - "stat"
+    - "mkdir"
+    - "mv"
+    - "rm"
+    - "touch"
