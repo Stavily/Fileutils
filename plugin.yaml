@@ -17,7 +17,7 @@ runtime:
 configuration:
   operation:
     type: "list"
-    description: "List of operations to perform"
+    description: "Operation to perform"
     items:
       type: "string"
       enum: ["create_file", "create_dir", "move", "delete", "rename"]

@@ -8,6 +8,11 @@ import sys
 from typing import Dict, Any, List
 import os
 import shutil
+from datetime import datetime
+
+# Import shared agent client
+sys.path.insert(0, os.path.dirname(__file__))
+from stavily_agent_client import StavilyAgentClient, StavilyAgentError
 
 # Configure logging
 logging.basicConfig(
@@ -28,6 +33,18 @@ class FileUtilsPlugin:
             config: Configuration dictionary from plugin.yaml
         """
         self.config = config
+
+        # Initialize agent client
+        self.agent_client = None
+        try:
+            self.agent_client = StavilyAgentClient()
+            self.agent_client.connect()
+            logger.info("Connected to Stavily agent")
+        except StavilyAgentError as e:
+            logger.warning(f"Failed to connect to agent: {e}")
+        except Exception as e:
+            logger.warning(f"Unexpected error connecting to agent: {e}")
+
         logger.info("Initialized File Utils plugin")
 
     def perform_operation(self) -> Dict[str, Any]:
@@ -81,9 +98,33 @@ class FileUtilsPlugin:
             with open(path, 'w') as f:
                 f.write(content)
             logger.info(f"Created file: {path}")
+
+            # Report to agent if connected
+            if self.agent_client and self.agent_client.is_connected():
+                try:
+                    self.agent_client.upload_logs([{
+                        "level": "INFO",
+                        "message": f"Created file: {path}",
+                        "timestamp": datetime.now().isoformat()
+                    }])
+                except StavilyAgentError as e:
+                    logger.warning(f"Failed to report file creation to agent: {e}")
+
             return True
         except Exception as e:
             logger.error(f"Failed to create file {path}: {str(e)}")
+
+            # Report error to agent if connected
+            if self.agent_client and self.agent_client.is_connected():
+                try:
+                    self.agent_client.upload_logs([{
+                        "level": "ERROR",
+                        "message": f"Failed to create file {path}: {str(e)}",
+                        "timestamp": datetime.now().isoformat()
+                    }])
+                except StavilyAgentError as e:
+                    logger.warning(f"Failed to report file creation error to agent: {e}")
+
             return False
 
     def create_dir(self, path: str) -> bool:
@@ -91,9 +132,33 @@ class FileUtilsPlugin:
         try:
             os.makedirs(path, exist_ok=True)
             logger.info(f"Created directory: {path}")
+
+            # Report to agent if connected
+            if self.agent_client and self.agent_client.is_connected():
+                try:
+                    self.agent_client.upload_logs([{
+                        "level": "INFO",
+                        "message": f"Created directory: {path}",
+                        "timestamp": datetime.now().isoformat()
+                    }])
+                except StavilyAgentError as e:
+                    logger.warning(f"Failed to report directory creation to agent: {e}")
+
             return True
         except Exception as e:
             logger.error(f"Failed to create directory {path}: {str(e)}")
+
+            # Report error to agent if connected
+            if self.agent_client and self.agent_client.is_connected():
+                try:
+                    self.agent_client.upload_logs([{
+                        "level": "ERROR",
+                        "message": f"Failed to create directory {path}: {str(e)}",
+                        "timestamp": datetime.now().isoformat()
+                    }])
+                except StavilyAgentError as e:
+                    logger.warning(f"Failed to report directory creation error to agent: {e}")
+
             return False
 
     def move(self, source: str, destination: str) -> bool:
@@ -225,8 +290,31 @@ def main():
         # Initialize plugin
         plugin = FileUtilsPlugin(config)
 
+        # Log plugin start to agent
+        if plugin.agent_client and plugin.agent_client.is_connected():
+            try:
+                plugin.agent_client.upload_logs([{
+                    "level": "INFO",
+                    "message": "File Utils plugin started",
+                    "timestamp": datetime.now().isoformat()
+                }])
+            except StavilyAgentError as e:
+                logger.warning(f"Failed to log plugin start to agent: {e}")
+
         # Perform operations
         result = plugin.perform_operations()
+
+        # Log completion to agent
+        if plugin.agent_client and plugin.agent_client.is_connected():
+            try:
+                status = "success" if result['failed_operations'] == 0 else "partial"
+                plugin.agent_client.upload_logs([{
+                    "level": "INFO",
+                    "message": f"File Utils plugin completed with status: {status}",
+                    "timestamp": datetime.now().isoformat()
+                }])
+            except StavilyAgentError as e:
+                logger.warning(f"Failed to log plugin completion to agent: {e}")
 
         # Output result
         output = {
@@ -238,6 +326,18 @@ def main():
 
     except Exception as e:
         logger.error(f"Plugin execution failed: {str(e)}")
+
+        # Log error to agent if possible
+        try:
+            if 'plugin' in locals() and plugin.agent_client and plugin.agent_client.is_connected():
+                plugin.agent_client.upload_logs([{
+                    "level": "ERROR",
+                    "message": f"File Utils plugin execution failed: {str(e)}",
+                    "timestamp": datetime.now().isoformat()
+                }])
+        except:
+            pass  # Ignore agent logging errors during exception handling
+
         result = {
             'status': 'error',
             'message': f'Plugin execution failed: {str(e)}'
