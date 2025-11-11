@@ -41,9 +41,9 @@ class FileUtilsPlugin:
             self.agent_client.connect()
             logger.info("Connected to Stavily agent")
         except StavilyAgentError as e:
-            logger.warning(f"Failed to connect to agent: {e}")
+            raise f"Failed to connect to agent: {e}"
         except Exception as e:
-            logger.warning(f"Unexpected error connecting to agent: {e}")
+            raise f"Unexpected error connecting to agent: {e}"
 
         logger.info("Initialized File Utils plugin")
 
